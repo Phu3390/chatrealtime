@@ -29,6 +29,7 @@ public class FriendRequest {
     private User receiver;
 
     @Column(length = 10)
+    @Enumerated(EnumType.STRING)
     private FriendRequestStatus status = FriendRequestStatus.PENDING;
 
     @Column(name = "created_at")

@@ -21,7 +21,6 @@ public class FriendController {
 
     FriendService friendService;
 
-    // Gửi lời mời kết bạn
     @PostMapping("/request")
     public void sendFriendRequest(
             @RequestBody SendFriendRequest request) {

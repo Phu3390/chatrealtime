@@ -5,13 +5,16 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
 
+import org.apache.catalina.security.SecurityUtil;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.example.chatrealtime.dto.request.LoginRequest;
 import com.example.chatrealtime.dto.request.RegisterRequest;
 import com.example.chatrealtime.dto.response.AuthResponse;
+import com.example.chatrealtime.dto.response.UserResponse;
 import com.example.chatrealtime.entity.User;
 import com.example.chatrealtime.enums.UserStatus;
 import com.example.chatrealtime.global.dto.ErrorCode;
@@ -74,6 +77,12 @@ public class AuthService {
                 .password(request.getPassword())
                 .build();
         return login(loginRequest);
+    }
+
+    public UserResponse getMe(){
+        User user = repository.findByEmail(SecurityContextHolder.getContext().getAuthentication().getName())
+                .orElseThrow(() -> new AppException(ErrorCode.ACCOUNT_NOT_EXITS));
+        return userMapper.toResponse(user);
     }
 
     public String genarateToken(User user) {

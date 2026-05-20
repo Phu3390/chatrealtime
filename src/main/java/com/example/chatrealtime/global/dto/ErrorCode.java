@@ -27,7 +27,9 @@ public enum ErrorCode {
 
     INVALID_REQUEST(1008, "Yêu cầu không hợp lệ", 400),
     NO_PERMISSION(1009, "Không có quyền thực hiện hành động này", 403),
-    ALREADY_EXISTS(1010, "Đã tồn tại", 400);
+    ALREADY_EXISTS(1010, "Đã tồn tại", 400),
+
+    INVALID_STATUS(1011, "Trạng thái không hợp lệ", 400);
     
 
     private final int code;

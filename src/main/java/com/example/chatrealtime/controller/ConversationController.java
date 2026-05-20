@@ -10,7 +10,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.example.chatrealtime.dto.request.AddParticipantRequest;
 import com.example.chatrealtime.dto.request.CreateConversationRequest;
-import com.example.chatrealtime.dto.response.ApiResponse;
 import com.example.chatrealtime.dto.response.ConversationResponse;
 import com.example.chatrealtime.dto.response.ConversationSummaryResponse;
 import com.example.chatrealtime.service.ConversationService;

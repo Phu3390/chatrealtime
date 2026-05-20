@@ -1,6 +1,7 @@
 package com.example.chatrealtime.config;
 
 import java.io.IOException;
+import java.util.List;
 
 import javax.crypto.spec.SecretKeySpec;
 
@@ -19,7 +20,11 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
@@ -64,12 +69,15 @@ public class SercurityConfig {
         @Value("${jwt.secret}")
         String secret_key;
 
+        @Value("${server.frontend.url}")
+        String frontend_url;
+
         @Bean
         public SecurityFilterChain securityFilterChain(HttpSecurity http)
                         throws Exception, IOException, ServletException, JwtException {
                 http
                                 .csrf(AbstractHttpConfigurer::disable)
-                                .cors(Customizer.withDefaults())
+                                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                                 .sessionManagement(session -> session
                                                 .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                                 .authorizeHttpRequests(auth -> auth
@@ -106,6 +114,22 @@ public class SercurityConfig {
         public JwtDecoder jwtDecoder() {
                 return NimbusJwtDecoder.withSecretKey(
                                 new SecretKeySpec(secret_key.getBytes(), "HmacSHA256")).build();
+        }
+
+        @Bean
+        public CorsConfigurationSource corsConfigurationSource() {
+
+                CorsConfiguration configuration = new CorsConfiguration();
+
+                configuration.setAllowedOrigins(List.of(frontend_url));
+                configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+                configuration.setAllowedHeaders(List.of("*"));
+                configuration.setAllowCredentials(true);
+
+                UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+                source.registerCorsConfiguration("/**", configuration);
+
+                return source;
         }
 
         @Bean

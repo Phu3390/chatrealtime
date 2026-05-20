@@ -31,6 +31,7 @@ public class User {
     private String avatar;
 
     @Column(length = 10)
+    @Enumerated(EnumType.STRING)
     private UserStatus status = UserStatus.OFFLINE;
 
     @Column(name = "created_at")

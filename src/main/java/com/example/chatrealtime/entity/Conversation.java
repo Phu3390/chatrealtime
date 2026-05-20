@@ -20,6 +20,7 @@ public class Conversation {
     private UUID id;
 
     @Column(nullable = false, length = 10)
+    @Enumerated(EnumType.STRING)
     private ConversationType type;
 
     @Column(length = 100)

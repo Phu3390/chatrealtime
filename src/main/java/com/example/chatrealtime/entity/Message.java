@@ -31,6 +31,7 @@ public class Message {
     private String content;
 
     @Column(name = "message_type", length = 20)
+    @Enumerated(EnumType.STRING)
     private MessageType messageType = MessageType.TEXT;
 
     @Column(name = "created_at")

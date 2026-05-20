@@ -1,16 +1,15 @@
-// package com.example.chatrealtime.mapper;
+package com.example.chatrealtime.mapper;
 
-// import org.mapstruct.Mapper;
-// import org.mapstruct.Mapping;
+import java.util.List;
 
-// import com.example.chatrealtime.dto.request.SendFriendRequest;
-// import com.example.chatrealtime.entity.FriendRequest;
+import org.mapstruct.Mapper;
 
-// @Mapper(componentModel = "spring")
-// public interface FriendRequestMapper {
-//     @Mapping(target = "id", ignore = true)
-//     @Mapping(target = "passwordHash", ignore = true)
-//     @Mapping(target = "createdAt", ignore = true)
-//     @Mapping(target = "status", ignore = true)
-//     FriendRequest toEntity(SendFriendRequest request);
-// }
+import com.example.chatrealtime.dto.response.FriendRequestResponse;
+import com.example.chatrealtime.entity.FriendRequest;
+
+@Mapper(componentModel = "spring", imports = { UserMapper.class })
+public interface FriendRequestMapper {
+    FriendRequestResponse toResponse(FriendRequest entity);
+
+    List<FriendRequestResponse> toListResponse(List<FriendRequest> entities);
+}

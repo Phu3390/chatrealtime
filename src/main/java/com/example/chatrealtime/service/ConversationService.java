@@ -13,6 +13,7 @@ import com.example.chatrealtime.dto.request.CreateConversationRequest;
 import com.example.chatrealtime.dto.response.ConversationResponse;
 import com.example.chatrealtime.dto.response.ConversationSummaryResponse;
 import com.example.chatrealtime.dto.response.ParticipantResponse;
+import com.example.chatrealtime.dto.response.UserResponse;
 import com.example.chatrealtime.entity.Conversation;
 import com.example.chatrealtime.entity.ConversationParticipant;
 import com.example.chatrealtime.entity.Message;
@@ -21,6 +22,7 @@ import com.example.chatrealtime.enums.ConversationParticipantRole;
 import com.example.chatrealtime.enums.ConversationType;
 import com.example.chatrealtime.global.dto.ErrorCode;
 import com.example.chatrealtime.global.exception.AppException;
+import com.example.chatrealtime.mapper.UserMapper;
 import com.example.chatrealtime.repository.ConversationParticipantRepository;
 import com.example.chatrealtime.repository.ConversationRepository;
 import com.example.chatrealtime.repository.MessageRepository;
@@ -38,6 +40,7 @@ public class ConversationService {
         final ConversationParticipantRepository conversationParticipantRepository;
         final UserRepository userRepository;
         final MessageRepository messageRepository;
+        final UserMapper userMapper;
 
         @Transactional
         public ConversationResponse createConversation(CreateConversationRequest request) {
@@ -98,9 +101,6 @@ public class ConversationService {
                                                         .build());
                 }
 
-                // =========================
-                // GROUP CHAT
-                // =========================
                 else if (request.getType() == ConversationType.GROUP) {
 
                         conversation = Conversation.builder()
@@ -147,9 +147,6 @@ public class ConversationService {
                         throw new AppException(ErrorCode.INVALID_REQUEST);
                 }
 
-                // =========================
-                // BUILD RESPONSE
-                // =========================
                 List<ConversationParticipant> participants = conversationParticipantRepository
                                 .findByConversationId(conversation.getId());
 
@@ -195,6 +192,27 @@ public class ConversationService {
                                                         .findById(participant.getConversationId())
                                                         .orElseThrow(() -> new AppException(ErrorCode.NOT_EXITS));
 
+                                        UserResponse targetUser = null;
+                                        if (conversation.getType() == ConversationType.PRIVATE) {
+                                                List<ConversationParticipant> participants = conversationParticipantRepository
+                                                                .findByConversationId(conversation.getId());
+                                                ConversationParticipant targetParticipant = participants.stream()
+                                                                .filter(p -> !p.getUserId()
+                                                                                .equals(currentUserId))
+                                                                .findFirst()
+                                                                .orElse(null);
+                                                if (targetParticipant != null) {
+                                                        User user = userRepository.findById(
+                                                                        targetParticipant
+                                                                                        .getUserId())
+                                                                        .orElseThrow(() -> new AppException(
+                                                                                        ErrorCode.ACCOUNT_NOT_EXITS));
+
+                                                        targetUser = userMapper.toResponse(user);
+                                                }
+
+                                        }
+
                                         Optional<Message> optionalLastMessage = messageRepository
                                                         .findTopByConversation_IdOrderByCreatedAtDesc(
                                                                         conversation.getId());
@@ -203,6 +221,7 @@ public class ConversationService {
                                                                 .conversationId(conversation.getId())
                                                                 .type(conversation.getType())
                                                                 .name(conversation.getName())
+                                                                .targetUser(targetUser)
                                                                 .unreadCount(0)
                                                                 .build();
                                         }
@@ -215,6 +234,7 @@ public class ConversationService {
                                                         .conversationId(conversation.getId())
                                                         .type(conversation.getType())
                                                         .name(conversation.getName())
+                                                        .targetUser(targetUser)
                                                         .lastMessage(lastMessage.getContent())
                                                         .lastMessageType(lastMessage.getMessageType())
                                                         .lastSenderId(sender.getId())
@@ -229,7 +249,6 @@ public class ConversationService {
                                 })
                                 .collect(java.util.stream.Collectors.toList());
 
-                // Sort mới nhất lên đầu
                 responses.sort((a, b) -> {
 
                         if (a.getLastMessageAt() == null && b.getLastMessageAt() == null) {

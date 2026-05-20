@@ -26,6 +26,7 @@ public class ConversationParticipant {
     private UUID userId;
     
     @Column(nullable = false, length = 20)
+    @Enumerated(EnumType.STRING)
     private ConversationParticipantRole role = ConversationParticipantRole.MEMBER;
 
     @Column(name = "joined_at")

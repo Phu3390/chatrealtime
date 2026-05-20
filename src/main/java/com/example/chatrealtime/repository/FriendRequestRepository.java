@@ -18,6 +18,15 @@ public interface FriendRequestRepository extends JpaRepository<FriendRequest, UU
 
     boolean existsBySenderAndReceiver(User sender, User receiver);
 
+    List<FriendRequest> findBySenderIdAndStatus(UUID senderId, FriendRequestStatus status);
+
+    List<FriendRequest> findByReceiverIdAndStatus(UUID receiverId, FriendRequestStatus status);
+
+    int countByReceiverIdAndStatus(
+            UUID receiverId,
+            FriendRequestStatus status
+    );
+
     boolean existsBySenderAndReceiverAndStatusIn(
             User sender, User receiver,
             List<FriendRequestStatus> statuses);
