@@ -4,7 +4,6 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 import com.example.chatrealtime.entity.Conversation;
-import com.example.chatrealtime.entity.User;
 import com.example.chatrealtime.enums.MessageType;
 
 import lombok.AllArgsConstructor;
@@ -17,9 +16,9 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class MessageResponse {
-    private UUID messageId;
+    private UUID id;
     private Conversation conversation;
-    private User sender;
+    private UserResponse sender;
     private String content;
     private MessageType messageType;
     private LocalDateTime createdAt;

@@ -29,7 +29,9 @@ public enum ErrorCode {
     NO_PERMISSION(1009, "Không có quyền thực hiện hành động này", 403),
     ALREADY_EXISTS(1010, "Đã tồn tại", 400),
 
-    INVALID_STATUS(1011, "Trạng thái không hợp lệ", 400);
+    INVALID_STATUS(1011, "Trạng thái không hợp lệ", 400),
+
+    NOT_FRIENDS(1012, "Không phải là bạn bè", 400);
     
 
     private final int code;

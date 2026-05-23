@@ -2,6 +2,7 @@ package com.example.chatrealtime.service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -25,6 +26,7 @@ import com.example.chatrealtime.global.exception.AppException;
 import com.example.chatrealtime.mapper.UserMapper;
 import com.example.chatrealtime.repository.ConversationParticipantRepository;
 import com.example.chatrealtime.repository.ConversationRepository;
+import com.example.chatrealtime.repository.FriendRepository;
 import com.example.chatrealtime.repository.MessageRepository;
 import com.example.chatrealtime.repository.UserRepository;
 
@@ -41,10 +43,41 @@ public class ConversationService {
         final UserRepository userRepository;
         final MessageRepository messageRepository;
         final UserMapper userMapper;
+        final FriendRepository friendRepository;
+
+        public void createPrivateConversationIfNotExists(UUID senderId, UUID userId) {
+                boolean isFriend = friendRepository.existsByUserIdAndFriendId(senderId, userId);
+
+                if (!isFriend) {
+                        return;
+                }
+                boolean hasConversation = hasPrivateConversation(senderId, userId);
+                if (hasConversation) {
+                        return;
+                }
+                CreateConversationRequest request = new CreateConversationRequest();
+                        request.setType(ConversationType.PRIVATE);
+                        request.setParticipantIds(List.of(userId));
+                        request.setName(null);
+                        createConversation(request);
+        }
+
+        private boolean hasPrivateConversation(UUID user1, UUID user2) {
+                List<UUID> user1ConversationIds = conversationParticipantRepository.findByUserId(user1)
+                        .stream().map(ConversationParticipant::getConversationId).toList();
+
+                List<UUID> user2ConversationIds = conversationParticipantRepository.findByUserId(user2)
+                        .stream().map(ConversationParticipant::getConversationId).toList();
+
+                return user1ConversationIds.stream()
+                        .filter(user2ConversationIds::contains)
+                        .map(conversationId -> conversationRepository.findById(conversationId).orElse(null))
+                        .filter(Objects::nonNull)
+                        .anyMatch(conversation -> conversation.getType() == ConversationType.PRIVATE);
+        }
 
         @Transactional
         public ConversationResponse createConversation(CreateConversationRequest request) {
-
                 UUID currentUserId = UUID.fromString(
                                 (String) ((org.springframework.security.oauth2.jwt.Jwt) SecurityContextHolder
                                                 .getContext().getAuthentication().getPrincipal())
@@ -176,98 +209,89 @@ public class ConversationService {
         }
 
         public List<ConversationSummaryResponse> getMyConversations() {
-
-                UUID currentUserId = UUID.fromString(
-                                (String) ((org.springframework.security.oauth2.jwt.Jwt) SecurityContextHolder
-                                                .getContext().getAuthentication().getPrincipal())
-                                                .getClaims().get("userId"));
-
-                List<ConversationParticipant> myParticipations = conversationParticipantRepository
-                                .findByUserId(currentUserId);
-
-                List<ConversationSummaryResponse> responses = myParticipations.stream()
-                                .map(participant -> {
-
-                                        Conversation conversation = conversationRepository
-                                                        .findById(participant.getConversationId())
-                                                        .orElseThrow(() -> new AppException(ErrorCode.NOT_EXITS));
-
-                                        UserResponse targetUser = null;
-                                        if (conversation.getType() == ConversationType.PRIVATE) {
-                                                List<ConversationParticipant> participants = conversationParticipantRepository
-                                                                .findByConversationId(conversation.getId());
-                                                ConversationParticipant targetParticipant = participants.stream()
-                                                                .filter(p -> !p.getUserId()
-                                                                                .equals(currentUserId))
-                                                                .findFirst()
-                                                                .orElse(null);
-                                                if (targetParticipant != null) {
-                                                        User user = userRepository.findById(
-                                                                        targetParticipant
-                                                                                        .getUserId())
-                                                                        .orElseThrow(() -> new AppException(
-                                                                                        ErrorCode.ACCOUNT_NOT_EXITS));
-
-                                                        targetUser = userMapper.toResponse(user);
-                                                }
-
-                                        }
-
-                                        Optional<Message> optionalLastMessage = messageRepository
-                                                        .findTopByConversation_IdOrderByCreatedAtDesc(
-                                                                        conversation.getId());
-                                        if (optionalLastMessage.isEmpty()) {
-                                                return ConversationSummaryResponse.builder()
-                                                                .conversationId(conversation.getId())
-                                                                .type(conversation.getType())
-                                                                .name(conversation.getName())
-                                                                .targetUser(targetUser)
-                                                                .unreadCount(0)
-                                                                .build();
-                                        }
-                                        Message lastMessage = optionalLastMessage.get();
-                                        User sender = userRepository.findById(lastMessage.getSender().getId())
-                                                        .orElseThrow(() -> new AppException(
-                                                                        ErrorCode.ACCOUNT_NOT_EXITS));
-
-                                        return ConversationSummaryResponse.builder()
-                                                        .conversationId(conversation.getId())
-                                                        .type(conversation.getType())
-                                                        .name(conversation.getName())
-                                                        .targetUser(targetUser)
-                                                        .lastMessage(lastMessage.getContent())
-                                                        .lastMessageType(lastMessage.getMessageType())
-                                                        .lastSenderId(sender.getId())
-                                                        .lastSenderName(sender.getFullName())
-                                                        .lastMessageAt(lastMessage.getCreatedAt())
-                                                        .unreadCount(
-                                                                        messageRepository.countUnreadMessages(
-                                                                                        conversation.getId(),
-                                                                                        participant.getUserId(),
-                                                                                        participant.getJoinedAt()))
-                                                        .build();
-                                })
-                                .collect(java.util.stream.Collectors.toList());
-
-                responses.sort((a, b) -> {
-
-                        if (a.getLastMessageAt() == null && b.getLastMessageAt() == null) {
-                                return 0;
-                        }
-
-                        if (a.getLastMessageAt() == null) {
-                                return 1;
-                        }
-
-                        if (b.getLastMessageAt() == null) {
-                                return -1;
-                        }
-
-                        return b.getLastMessageAt().compareTo(a.getLastMessageAt());
-                });
-
-                return responses;
+                UUID currentUserId = UUID.fromString((String) ((org.springframework.security.oauth2.jwt.Jwt) SecurityContextHolder
+                                .getContext().getAuthentication().getPrincipal())
+                                .getClaims().get("userId"));
+                List<ConversationParticipant> myParticipations = conversationParticipantRepository.findByUserId(currentUserId);
+                return myParticipations.stream()
+                        .map(participant -> buildConversationSummary(participant, currentUserId))
+                        .filter(Objects::nonNull)
+                        .sorted(this::sortConversation)
+                        .toList();
         }
+        private ConversationSummaryResponse buildConversationSummary(ConversationParticipant participant, UUID currentUserId) {
+
+                Conversation conversation = conversationRepository
+                        .findById(participant.getConversationId())
+                        .orElseThrow(() -> new AppException(ErrorCode.NOT_EXITS));
+                UserResponse targetUser = null;
+
+                if (conversation.getType() == ConversationType.PRIVATE) {
+                        ConversationParticipant targetParticipant = getTargetParticipant(conversation.getId(), currentUserId);
+                        if (targetParticipant == null) {
+                        return null;
+                        }
+                        boolean isFriend = friendRepository.existsByUserIdAndFriendId(currentUserId,targetParticipant.getUserId());
+                        if (!isFriend) {
+                                return null;
+                        }
+                        User target = userRepository.findById(targetParticipant.getUserId())
+                                .orElseThrow(() -> new AppException(ErrorCode.ACCOUNT_NOT_EXITS));
+                        targetUser = userMapper.toResponse(target);
+                }
+
+                Optional<Message> optionalLastMessage =
+                        messageRepository.findTopByConversation_IdOrderByCreatedAtDesc(conversation.getId());
+
+                if (optionalLastMessage.isEmpty()) {
+                        return ConversationSummaryResponse.builder()
+                                .conversationId(conversation.getId())
+                                .type(conversation.getType())
+                                .name(conversation.getName())
+                                .targetUser(targetUser)
+                                .unreadCount(0)
+                                .build();
+                }
+                Message lastMessage = optionalLastMessage.get();
+
+                return ConversationSummaryResponse.builder()
+                        .conversationId(conversation.getId())
+                        .type(conversation.getType())
+                        .name(conversation.getName())
+                        .targetUser(targetUser)
+                        .lastMessage(lastMessage.getContent())
+                        .lastMessageType(lastMessage.getMessageType())
+                        .lastSenderId(lastMessage.getSender().getId())
+                        .lastSenderName(lastMessage.getSender().getFullName())
+                        .lastMessageAt(lastMessage.getCreatedAt())
+                        .unreadCount(messageRepository.countUnreadMessages(
+                                        conversation.getId(),
+                                        participant.getUserId(),
+                                        participant.getJoinedAt())).build();
+        
+        }
+
+        private ConversationParticipant getTargetParticipant(UUID conversationId, UUID currentUserId) {
+                return conversationParticipantRepository
+                        .findByConversationId(conversationId)
+                        .stream()
+                        .filter(participant -> !participant.getUserId().equals(currentUserId))
+                        .findFirst()
+                        .orElse(null);
+                }
+        private int sortConversation(ConversationSummaryResponse a, ConversationSummaryResponse b) {
+                if (a.getLastMessageAt() == null && b.getLastMessageAt() == null) {
+                        return 0;
+                }
+                if (a.getLastMessageAt() == null) {
+                        return 1;
+                }
+                if (b.getLastMessageAt() == null) {
+                        return -1;
+                }
+                return b.getLastMessageAt().compareTo(a.getLastMessageAt());
+        }
+
 
         @Transactional
         public void addParticipant(AddParticipantRequest request) {

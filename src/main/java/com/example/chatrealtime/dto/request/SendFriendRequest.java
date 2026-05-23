@@ -12,6 +12,5 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class SendFriendRequest {
-     
      private UUID receiverId;
 }

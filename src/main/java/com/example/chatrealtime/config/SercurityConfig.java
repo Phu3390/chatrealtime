@@ -59,7 +59,8 @@ public class SercurityConfig {
                         "/login",
                         "/login/**",
                         "/favicon.ico",
-                        "/error"
+                        "/error",
+                        "/ws/**",
         };
 
         // @Autowired
