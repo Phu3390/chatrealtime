@@ -34,10 +34,10 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
           FROM Message m
           WHERE m.conversation.id = :conversationId
             AND m.sender.id <> :userId
-            AND m.createdAt > :joinedAt
+            AND m.createdAt > :lastReadAt
       """)
   int countUnreadMessages(
       @Param("conversationId") UUID conversationId,
       @Param("userId") UUID userId,
-      @Param("joinedAt") LocalDateTime joinedAt);
+      @Param("lastReadAt") LocalDateTime lastReadAt);
 }

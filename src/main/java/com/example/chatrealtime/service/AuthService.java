@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
+import java.util.UUID;
 
 import org.apache.catalina.security.SecurityUtil;
 import org.springframework.beans.factory.annotation.Value;
@@ -48,6 +49,16 @@ public class AuthService {
     @NonFinal
     @Value("${jwt.expiration}")
     int exp;
+
+    public UUID extractUserId(String token) {
+        try {
+            JWSObject jwsObject = JWSObject.parse(token);
+            String userIdStr = (String) jwsObject.getPayload().toJSONObject().get("userId");
+            return UUID.fromString(userIdStr);
+        } catch (Exception e) {
+            throw new AppException(ErrorCode.INVALID_TOKEN);
+        }
+    }
 
     public AuthResponse login(LoginRequest request) {
         User user = repository.findByEmail(request.getEmail())

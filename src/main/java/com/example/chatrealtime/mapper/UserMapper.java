@@ -7,6 +7,7 @@ import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 
 import com.example.chatrealtime.dto.request.RegisterRequest;
+import com.example.chatrealtime.dto.request.UpdateProfileRequest;
 import com.example.chatrealtime.dto.response.UserResponse;
 import com.example.chatrealtime.entity.User;
 
@@ -26,5 +27,5 @@ public interface UserMapper {
     @Mapping(target = "passwordHash", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "status", ignore = true)
-    void updateUserEntity(@MappingTarget User entity, RegisterRequest request);
+    void updateUserEntity(@MappingTarget User entity, UpdateProfileRequest request);
 }

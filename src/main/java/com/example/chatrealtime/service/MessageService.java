@@ -16,14 +16,17 @@ import com.example.chatrealtime.dto.request.SendMessageRequest;
 import com.example.chatrealtime.dto.response.ConversationSummaryResponse;
 import com.example.chatrealtime.dto.response.MessageResponse;
 import com.example.chatrealtime.dto.response.PageResponse;
+import com.example.chatrealtime.dto.response.UserResponse;
 import com.example.chatrealtime.entity.Conversation;
 import com.example.chatrealtime.entity.ConversationParticipant;
 import com.example.chatrealtime.entity.Message;
 import com.example.chatrealtime.entity.User;
+import com.example.chatrealtime.enums.ConversationType;
 import com.example.chatrealtime.enums.MessageType;
 import com.example.chatrealtime.global.dto.ErrorCode;
 import com.example.chatrealtime.global.exception.AppException;
 import com.example.chatrealtime.mapper.MessageMapper;
+import com.example.chatrealtime.mapper.UserMapper;
 import com.example.chatrealtime.repository.ConversationParticipantRepository;
 import com.example.chatrealtime.repository.ConversationRepository;
 import com.example.chatrealtime.repository.MessageRepository;
@@ -43,6 +46,7 @@ public class MessageService {
         final ConversationParticipantRepository conversationParticipantRepository;
         final SimpMessagingTemplate messagingTemplate;
         final MessageMapper messageMapper;
+        final UserMapper userMapper;
 
         @Transactional
         public MessageResponse sendMessage(SendMessageRequest request) {
@@ -84,6 +88,11 @@ public class MessageService {
 
                 messageRepository.save(message);
 
+                ConversationParticipant  cp = conversationParticipantRepository.findByConversationIdAndUserId(
+                                conversation.getId(), sender.getId()).orElseThrow(() -> new AppException(ErrorCode.NOT_EXITS));
+                cp.setLastReadAt(LocalDateTime.now());
+                conversationParticipantRepository.save(cp);
+
                 MessageResponse messageResponse = messageMapper.toResponse(message);
 
                 messagingTemplate.convertAndSend(
@@ -100,12 +109,19 @@ public class MessageService {
                                         : messageRepository.countUnreadMessages(
                                                         conversation.getId(),
                                                         participant1.getUserId(),
-                                                        participant1.getJoinedAt());
+                                                        participant1.getLastReadAt());
+                        UserResponse targetUser = null;
+                        if (conversation.getType() == ConversationType.PRIVATE) {
+                                User target = userRepository.findById(participant1.getUserId())
+                                                .orElseThrow(() -> new AppException(ErrorCode.ACCOUNT_NOT_EXITS));
+                                targetUser = userMapper.toResponse(target);
+                        }
 
                         ConversationSummaryResponse summary = ConversationSummaryResponse.builder()
                                         .conversationId(conversation.getId())
                                         .type(conversation.getType())
                                         .name(conversation.getName())
+                                        .targetUser(targetUser)
                                         .lastMessage(message.getContent())
                                         .lastMessageType(message.getMessageType())
                                         .lastSenderId(sender.getId())
@@ -114,10 +130,7 @@ public class MessageService {
                                         .unreadCount(unreadCount)
                                         .build();
 
-                        messagingTemplate.convertAndSendToUser(
-                                        participant1.getUserId().toString(),
-                                        "/queue/conversations",
-                                        summary);
+                        messagingTemplate.convertAndSend("/topic/conversations/" + participant1.getUserId(),summary);
                 }
                 return messageResponse;
         }

@@ -24,7 +24,7 @@ public class ConversationParticipant {
     @Id
     @Column(name = "user_id")
     private UUID userId;
-    
+
     @Column(nullable = false, length = 20)
     @Enumerated(EnumType.STRING)
     private ConversationParticipantRole role = ConversationParticipantRole.MEMBER;
@@ -34,6 +34,9 @@ public class ConversationParticipant {
 
     @Column(name = "is_muted")
     private Boolean isMuted = false;
+
+    @Column(name = "last_read_at")
+    private LocalDateTime lastReadAt;
 
     @Data
     @NoArgsConstructor

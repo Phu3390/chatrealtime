@@ -31,7 +31,8 @@ public enum ErrorCode {
 
     INVALID_STATUS(1011, "Trạng thái không hợp lệ", 400),
 
-    NOT_FRIENDS(1012, "Không phải là bạn bè", 400);
+    NOT_FRIENDS(1012, "Không phải là bạn bè", 400),
+    INVALID_TOKEN(1013, "Token không hợp lệ", 401);
     
 
     private final int code;

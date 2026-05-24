@@ -7,6 +7,7 @@ import java.util.UUID;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
+import com.example.chatrealtime.dto.request.UpdateProfileRequest;
 import com.example.chatrealtime.dto.response.FriendRequestResponse;
 import com.example.chatrealtime.dto.response.UserResponse;
 import com.example.chatrealtime.entity.Friend;
@@ -69,12 +70,12 @@ public class UserService {
     }
 
     public List<FriendRequestResponse> getFriendStatus(FriendRequestStatus status) {
-         UUID currentUserId = UUID.fromString(
+        UUID currentUserId = UUID.fromString(
                 (String) ((org.springframework.security.oauth2.jwt.Jwt) SecurityContextHolder.getContext()
                         .getAuthentication().getPrincipal())
                         .getClaims().get("userId"));
 
-        if(status == FriendRequestStatus.ACCEPTED){
+        if (status == FriendRequestStatus.ACCEPTED) {
             throw new AppException(ErrorCode.INVALID_STATUS);
         }
 
@@ -87,7 +88,8 @@ public class UserService {
                 (String) ((org.springframework.security.oauth2.jwt.Jwt) SecurityContextHolder.getContext()
                         .getAuthentication().getPrincipal())
                         .getClaims().get("userId"));
-        List<FriendRequest> requests = friendRequestRepository.findByReceiverIdAndStatus(currentUserId, FriendRequestStatus.PENDING);
+        List<FriendRequest> requests = friendRequestRepository.findByReceiverIdAndStatus(currentUserId,
+                FriendRequestStatus.PENDING);
         return friendRequestMapper.toListResponse(requests);
     }
 
@@ -97,5 +99,21 @@ public class UserService {
                         .getAuthentication().getPrincipal())
                         .getClaims().get("userId"));
         return friendRequestRepository.countByReceiverIdAndStatus(currentUserId, FriendRequestStatus.PENDING);
+    }
+
+    public UserResponse updateProfile(UpdateProfileRequest request) {
+        UUID currentUserId = UUID.fromString(
+                (String) ((org.springframework.security.oauth2.jwt.Jwt) SecurityContextHolder.getContext()
+                        .getAuthentication().getPrincipal())
+                        .getClaims().get("userId"));
+
+        User user = repository.findById(currentUserId)
+                .orElseThrow(() -> new AppException(ErrorCode.ACCOUNT_NOT_EXITS));
+        if(repository.existsByEmailAndIdNot(request.getEmail(), currentUserId)) {
+            throw new AppException(ErrorCode.EMAIL_EXITS);
+        }
+        userMapper.updateUserEntity(user, request);
+        repository.save(user);
+        return userMapper.toResponse(user);
     }
 }
