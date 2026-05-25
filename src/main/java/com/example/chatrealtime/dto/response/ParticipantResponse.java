@@ -20,5 +20,6 @@ public class ParticipantResponse {
     private String avatar;
     private ConversationParticipantRole role;
     private Boolean isMuted;
+    private LocalDateTime lastReadAt;
     private LocalDateTime joinedAt;
 }

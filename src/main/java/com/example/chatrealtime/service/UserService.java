@@ -116,4 +116,19 @@ public class UserService {
         repository.save(user);
         return userMapper.toResponse(user);
     }
+    public List<UserResponse> getMyFriends() {
+        UUID currentUserId = UUID.fromString(
+                (String) ((org.springframework.security.oauth2.jwt.Jwt) SecurityContextHolder.getContext()
+                        .getAuthentication().getPrincipal())
+                        .getClaims().get("userId"));
+
+        List<Friend> friends = friendRepository.findByUserId(currentUserId);
+        List<UUID> friendIds = new ArrayList<>();
+        for (Friend friend : friends) {
+            friendIds.add(friend.getFriendId());
+        }
+        List<User> users = repository.findAllById(friendIds);
+        return userMapper.toResponseList(users);
+    }
+
 }

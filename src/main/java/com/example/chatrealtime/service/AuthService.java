@@ -81,7 +81,7 @@ public class AuthService {
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         user.setCreatedAt(LocalDateTime.now());
         user.setStatus(UserStatus.OFFLINE);
-        
+
         User usernew = repository.save(user);
         LoginRequest loginRequest = LoginRequest.builder()
                 .email(usernew.getEmail())
@@ -90,7 +90,7 @@ public class AuthService {
         return login(loginRequest);
     }
 
-    public UserResponse getMe(){
+    public UserResponse getMe() {
         User user = repository.findByEmail(SecurityContextHolder.getContext().getAuthentication().getName())
                 .orElseThrow(() -> new AppException(ErrorCode.ACCOUNT_NOT_EXITS));
         return userMapper.toResponse(user);
@@ -114,5 +114,43 @@ public class AuthService {
         } catch (Exception e) {
             throw new AppException(ErrorCode.INTERNAL_SERVER_ERROR);
         }
+    }
+
+    public AuthResponse loginWithGoogle(String email, String fullName, Boolean emailVerified, String picture) {
+        if (fullName == null || fullName.isBlank()) {
+            fullName = email;
+        }
+        if (!Boolean.TRUE.equals(emailVerified)) {
+            throw new AppException(ErrorCode.GOOGLE_EMAIL_NOT_VERIFIED);
+        }
+        User user = repository.findByEmail(email).orElse(null);
+        if (user != null) {
+            if (user.getPasswordHash() != null && !user.getPasswordHash().isBlank()) {
+                throw new AppException(ErrorCode.NOT_LOGIN_WITH_GOOGLE);
+            }
+        } else {
+            user = createUserWithGoogleToken(email, fullName, picture);
+        }
+        String token = genarateToken(user);
+
+        return AuthResponse.builder()
+                .token(token)
+                .isAuth(true)
+                .build();
+    }
+
+    public User createUserWithGoogleToken(String email, String fullName, String picture) {
+        User newUser = new User();
+        newUser.setEmail(email);
+        newUser.setPasswordHash(null);
+        newUser.setFullName(fullName);
+        if(picture != null && !picture.isBlank()) {
+            newUser.setAvatar(picture);
+        }else{
+            newUser.setAvatar(null);
+        }
+        newUser.setCreatedAt(LocalDateTime.now());
+        newUser.setStatus(UserStatus.OFFLINE);
+        return repository.save(newUser);
     }
 }

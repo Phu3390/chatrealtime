@@ -32,7 +32,12 @@ public enum ErrorCode {
     INVALID_STATUS(1011, "Trạng thái không hợp lệ", 400),
 
     NOT_FRIENDS(1012, "Không phải là bạn bè", 400),
-    INVALID_TOKEN(1013, "Token không hợp lệ", 401);
+    INVALID_TOKEN(1013, "Token không hợp lệ", 401),
+
+    IVALID_SIZE_FILE(1014, "File vượt quá kích thước cho phép", 400),
+
+    GOOGLE_EMAIL_NOT_VERIFIED(1015, "Email Google chưa được xác minh", 400),
+    NOT_LOGIN_WITH_GOOGLE(1016, "Tài khoản đã tồn tại và không đăng nhập bằng Google", 400);
     
 
     private final int code;

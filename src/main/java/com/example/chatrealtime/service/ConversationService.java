@@ -150,6 +150,7 @@ public class ConversationService {
                                                         .userId(currentUserId)
                                                         .role(ConversationParticipantRole.ADMIN)
                                                         .joinedAt(LocalDateTime.now())
+                                                        .lastReadAt(LocalDateTime.now())
                                                         .isMuted(false)
                                                         .build());
 
@@ -172,6 +173,7 @@ public class ConversationService {
                                                                         .userId(participant.getId())
                                                                         .role(ConversationParticipantRole.MEMBER)
                                                                         .joinedAt(LocalDateTime.now())
+                                                                        .lastReadAt(LocalDateTime.now())
                                                                         .isMuted(false)
                                                                         .build());
                                 }
@@ -195,6 +197,7 @@ public class ConversationService {
                                         .role(participant.getRole())
                                         .isMuted(participant.getIsMuted())
                                         .joinedAt(participant.getJoinedAt())
+                                        .lastReadAt(participant.getLastReadAt())
                                         .build();
 
                 }).toList();

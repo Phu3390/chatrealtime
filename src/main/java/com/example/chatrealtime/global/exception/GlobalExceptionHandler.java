@@ -6,6 +6,7 @@ import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 
 import com.example.chatrealtime.dto.response.ApiResponse;
@@ -17,14 +18,15 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(value = Exception.class)
-    ResponseEntity<ApiResponse> handleException(Exception e) {
-        log.error("Unhandled exception", e);
-        return ResponseEntity.status(ErrorCode.UNKNOWN_ERROR.getStatus()).body(ApiResponse.builder()
-                .code(ErrorCode.UNKNOWN_ERROR.getCode())
-                .message(ErrorCode.UNKNOWN_ERROR.getMessage())
-                .build());
-    }
+    // @ExceptionHandler(value = Exception.class)
+    // ResponseEntity<ApiResponse> handleException(Exception e) {
+    // log.error("Unhandled exception", e);
+    // return
+    // ResponseEntity.status(ErrorCode.UNKNOWN_ERROR.getStatus()).body(ApiResponse.builder()
+    // .code(ErrorCode.UNKNOWN_ERROR.getCode())
+    // .message(ErrorCode.UNKNOWN_ERROR.getMessage())
+    // .build());
+    // }
 
     @ExceptionHandler(value = AppException.class)
     ResponseEntity<ApiResponse> handleAppException(AppException e) {
@@ -71,13 +73,24 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
-public ResponseEntity<ApiResponse> handleHttpRequestMethodNotSupported(
-        HttpRequestMethodNotSupportedException e
-) {
-    ErrorCode errorCode = ErrorCode.METHOD_NOT_ALLOWED;
-    return ResponseEntity.status(errorCode.getStatus()).body(ApiResponse.builder()
-            .code(errorCode.getCode())
-            .message(errorCode.getMessage())
-            .build());
-}
+    public ResponseEntity<ApiResponse> handleHttpRequestMethodNotSupported(
+            HttpRequestMethodNotSupportedException e) {
+        ErrorCode errorCode = ErrorCode.METHOD_NOT_ALLOWED;
+        return ResponseEntity.status(errorCode.getStatus()).body(ApiResponse.builder()
+                .code(errorCode.getCode())
+                .message(errorCode.getMessage())
+                .build());
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiResponse> handleMaxSize(
+            MaxUploadSizeExceededException ex) {
+        ErrorCode errorCode = ErrorCode.IVALID_SIZE_FILE;
+
+        return ResponseEntity.status(errorCode.getStatus()).body(ApiResponse.builder()
+                .code(errorCode.getCode())
+                .message(errorCode.getMessage())
+                .build());
+    }
+
 }

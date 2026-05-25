@@ -47,5 +47,9 @@ public class UserController {
     public UserResponse updateProfile(@RequestBody UpdateProfileRequest request) {
         return userService.updateProfile(request);
     }
-    
+
+    @GetMapping("/myfriends")
+    public List<UserResponse> getMyFriends() {
+        return userService.getMyFriends();
+    }
 }

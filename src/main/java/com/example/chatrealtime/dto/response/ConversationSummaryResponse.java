@@ -3,7 +3,6 @@ package com.example.chatrealtime.dto.response;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-import com.example.chatrealtime.entity.User;
 import com.example.chatrealtime.enums.ConversationType;
 import com.example.chatrealtime.enums.MessageType;
 

@@ -63,9 +63,9 @@ public class SercurityConfig {
                         "/ws/**",
         };
 
-        // @Autowired
-        // @Lazy
-        // CustomOAuth2SuccessHandler customOAuth2SuccessHandler;
+        @Autowired
+        @Lazy
+        CustomOAuth2SuccessHandler customOAuth2SuccessHandler;
 
         @Value("${jwt.secret}")
         String secret_key;
@@ -79,8 +79,10 @@ public class SercurityConfig {
                 http
                                 .csrf(AbstractHttpConfigurer::disable)
                                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                                // .sessionManagement(session -> session
+                                // .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                                 .sessionManagement(session -> session
-                                                .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
+                                                .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                                 .authorizeHttpRequests(auth -> auth
                                                 .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
                                                 .anyRequest().authenticated())
@@ -88,10 +90,8 @@ public class SercurityConfig {
                                                 .jwt(jwt -> {
                                                 }))
 
-                                // .oauth2Login(oauth -> oauth
-                                // .successHandler(customOAuth2SuccessHandler)
-
-                                // )
+                                .oauth2Login(oauth -> oauth
+                                                .successHandler(customOAuth2SuccessHandler))
 
                                 .exceptionHandling(ex -> ex
                                                 .authenticationEntryPoint((req, res, e) -> {
