@@ -1,6 +1,7 @@
 package com.example.chatrealtime.service;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -11,12 +12,14 @@ import org.springframework.stereotype.Service;
 
 import com.example.chatrealtime.dto.request.AddParticipantRequest;
 import com.example.chatrealtime.dto.request.CreateConversationRequest;
+import com.example.chatrealtime.dto.request.UpdateConversationResquest;
 import com.example.chatrealtime.dto.response.ConversationResponse;
 import com.example.chatrealtime.dto.response.ConversationSummaryResponse;
 import com.example.chatrealtime.dto.response.ParticipantResponse;
 import com.example.chatrealtime.dto.response.UserResponse;
 import com.example.chatrealtime.entity.Conversation;
 import com.example.chatrealtime.entity.ConversationParticipant;
+import com.example.chatrealtime.entity.Friend;
 import com.example.chatrealtime.entity.Message;
 import com.example.chatrealtime.entity.User;
 import com.example.chatrealtime.enums.ConversationParticipantRole;
@@ -110,6 +113,7 @@ public class ConversationService {
                         conversation = Conversation.builder()
                                         .type(ConversationType.PRIVATE)
                                         .name(null)
+                                        .avatarGroup(null)
                                         .createdAt(LocalDateTime.now())
                                         .build();
 
@@ -139,6 +143,7 @@ public class ConversationService {
                         conversation = Conversation.builder()
                                         .type(ConversationType.GROUP)
                                         .name(request.getName())
+                                        .avatarGroup(request.getAvatarGroup())
                                         .createdAt(LocalDateTime.now())
                                         .build();
 
@@ -258,7 +263,9 @@ public class ConversationService {
                                         .type(conversation.getType())
                                         .name(conversation.getName())
                                         .targetUser(targetUser)
+                                        .avatarGroup(conversation.getAvatarGroup())
                                         .unreadCount(0)
+                                        .role(participant.getRole())
                                         .build();
                 }
                 Message lastMessage = optionalLastMessage.get();
@@ -268,11 +275,13 @@ public class ConversationService {
                                 .type(conversation.getType())
                                 .name(conversation.getName())
                                 .targetUser(targetUser)
+                                .avatarGroup(conversation.getAvatarGroup())
                                 .lastMessage(lastMessage.getContent())
                                 .lastMessageType(lastMessage.getMessageType())
                                 .lastSenderId(lastMessage.getSender().getId())
                                 .lastSenderName(lastMessage.getSender().getFullName())
                                 .lastMessageAt(lastMessage.getCreatedAt())
+                                .role(participant.getRole())
                                 .unreadCount(messageRepository.countUnreadMessages(
                                                 conversation.getId(),
                                                 participant.getUserId(),
@@ -304,7 +313,7 @@ public class ConversationService {
         }
 
         @Transactional
-        public void addParticipant(AddParticipantRequest request) {
+        public void addParticipant(List<AddParticipantRequest> request, UUID conversationId) {
 
                 UUID currentUserId = UUID
                                 .fromString((String) ((org.springframework.security.oauth2.jwt.Jwt) SecurityContextHolder
@@ -312,7 +321,87 @@ public class ConversationService {
                                                 .getAuthentication().getPrincipal())
                                                 .getClaims().get("userId"));
 
-                Conversation conversation = conversationRepository.findById(request.getConversationId())
+                Conversation conversation = conversationRepository.findById(conversationId)
+                                .orElseThrow(() -> new AppException(ErrorCode.NOT_EXITS));
+
+                if (conversation.getType() != ConversationType.GROUP) {
+                        throw new AppException(ErrorCode.INVALID_REQUEST);
+                }
+
+                ConversationParticipant currentParticipant = conversationParticipantRepository
+                                .findByConversationIdAndUserId(conversation.getId(), currentUserId)
+                                .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST));
+
+                if (currentParticipant.getRole() != ConversationParticipantRole.ADMIN) {
+                        throw new AppException(ErrorCode.NO_PERMISSION);
+                }
+                User newUser= null;
+                for (AddParticipantRequest req : request) {
+                        newUser = userRepository.findById(req.getUserId())
+                                        .orElseThrow(() -> new AppException(ErrorCode.ACCOUNT_NOT_EXITS));
+
+                        if (conversationParticipantRepository.existsByConversationIdAndUserId(
+                                        conversation.getId(),
+                                        newUser.getId())) {
+                                throw new AppException(ErrorCode.ALREADY_EXISTS);
+                        }
+                        conversationParticipantRepository.save(ConversationParticipant.builder()
+                                        .conversationId(conversation.getId())
+                                        .userId(newUser.getId())
+                                        .role(ConversationParticipantRole.MEMBER)
+                                        .joinedAt(LocalDateTime.now())
+                                        .lastReadAt(LocalDateTime.now())
+                                        .isMuted(false)
+                                        .build());
+                }
+        }
+
+
+        //Lấy tất cả Friend chưa vào group target
+        public List<UserResponse> getFriendsNotInGroup(UUID conversationId) {
+                UUID currentUserId = UUID
+                                .fromString((String) ((org.springframework.security.oauth2.jwt.Jwt) SecurityContextHolder
+                                                .getContext()
+                                                .getAuthentication().getPrincipal())
+                                                .getClaims().get("userId"));
+
+                Conversation conversation = conversationRepository.findById(conversationId)
+                                .orElseThrow(() -> new AppException(ErrorCode.NOT_EXITS));
+
+                if (conversation.getType() != ConversationType.GROUP) {
+                        throw new AppException(ErrorCode.INVALID_REQUEST);
+                }
+
+                List<ConversationParticipant> participants = conversationParticipantRepository
+                                .findByConversationId(conversation.getId());
+
+                List<UUID> participantIds = participants.stream()
+                                .map(ConversationParticipant::getUserId)
+                                .toList();
+                List<Friend> friends = friendRepository.findByUserId(currentUserId);
+
+                List<UUID> friendIds = friends.stream()
+                                .map(Friend::getFriendId)
+                                .toList();
+
+                List<UUID> resultIds = friendIds.stream()
+                                .filter(friendId -> !participantIds.contains(friendId))
+                                .toList();
+
+                return userRepository.findAllById(resultIds).stream()
+                                .map(userMapper::toResponse)
+                                .toList();
+        }
+
+        //Admin có quyền thay đổi role của thành viên trong group chat
+        public void setRoleAdmin(UUID conversationId, UUID userId) {
+                UUID currentUserId = UUID
+                                .fromString((String) ((org.springframework.security.oauth2.jwt.Jwt) SecurityContextHolder
+                                                .getContext()
+                                                .getAuthentication().getPrincipal())
+                                                .getClaims().get("userId"));
+
+                Conversation conversation = conversationRepository.findById(conversationId)
                                 .orElseThrow(() -> new AppException(ErrorCode.NOT_EXITS));
 
                 if (conversation.getType() != ConversationType.GROUP) {
@@ -327,28 +416,165 @@ public class ConversationService {
                         throw new AppException(ErrorCode.NO_PERMISSION);
                 }
 
-                User newUser = userRepository.findById(request.getUserId())
-                                .orElseThrow(() -> new AppException(ErrorCode.ACCOUNT_NOT_EXITS));
+                ConversationParticipant targetParticipant = conversationParticipantRepository
+                                .findByConversationIdAndUserId(conversation.getId(), userId)
+                                .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST));
 
-                if (conversationParticipantRepository.existsByConversationIdAndUserId(
-                                conversation.getId(),
-                                newUser.getId())) {
-                        throw new AppException(ErrorCode.ALREADY_EXISTS);
+                if (targetParticipant.getRole() == ConversationParticipantRole.ADMIN) {
+                        throw new AppException(ErrorCode.NO_PERMISSION);
                 }
 
-                conversationParticipantRepository.save(ConversationParticipant.builder()
-                                .conversationId(conversation.getId())
-                                .userId(newUser.getId())
-                                .role(request.getRole() == null
-                                                ? ConversationParticipantRole.MEMBER
-                                                : request.getRole())
-                                .joinedAt(LocalDateTime.now())
-                                .isMuted(false)
-                                .build());
+                targetParticipant.setRole(ConversationParticipantRole.ADMIN);
+                conversationParticipantRepository.save(targetParticipant);
+        }
+        //kick member ra khỏi group chat
+        public void kickMemberGroup(UUID conversationId, UUID userId) {
+                UUID currentUserId = UUID
+                                .fromString((String) ((org.springframework.security.oauth2.jwt.Jwt) SecurityContextHolder
+                                                .getContext()
+                                                .getAuthentication().getPrincipal())
+                                                .getClaims().get("userId"));
+
+                Conversation conversation = conversationRepository.findById(conversationId)
+                                .orElseThrow(() -> new AppException(ErrorCode.NOT_EXITS));
+
+                if (conversation.getType() != ConversationType.GROUP) {
+                        throw new AppException(ErrorCode.INVALID_REQUEST);
+                }
+
+                ConversationParticipant currentParticipant = conversationParticipantRepository
+                                .findByConversationIdAndUserId(conversation.getId(), currentUserId)
+                                .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST));
+
+                if (currentParticipant.getRole() != ConversationParticipantRole.ADMIN) {
+                        throw new AppException(ErrorCode.NO_PERMISSION);
+                }
+
+                ConversationParticipant targetParticipant = conversationParticipantRepository
+                                .findByConversationIdAndUserId(conversation.getId(), userId)
+                                .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST));
+
+                if (targetParticipant.getRole() == ConversationParticipantRole.ADMIN) {
+                        throw new AppException(ErrorCode.NO_PERMISSION);
+                }
+
+                conversationParticipantRepository.delete(targetParticipant);
+        }
+        //Lấy tất cả thành viên trong group chat
+        public List<ParticipantResponse> getConversationParticipants(UUID conversationId) {
+                Conversation conversation = conversationRepository.findById(conversationId)
+                                .orElseThrow(() -> new AppException(ErrorCode.NOT_EXITS));
+
+                List<ConversationParticipant> participants = conversationParticipantRepository
+                                .findByConversationId(conversation.getId());
+                List<ParticipantResponse> result = new ArrayList<>();
+                for(ConversationParticipant participant : participants) {
+                        User user = userRepository.findById(participant.getUserId())
+                                        .orElseThrow(() -> new AppException(ErrorCode.ACCOUNT_NOT_EXITS));
+                        result.add(ParticipantResponse.builder()
+                                                .userId(user.getId())
+                                                .fullName(user.getFullName())
+                                                .avatar(user.getAvatar())
+                                                .role(participant.getRole())
+                                                .isMuted(participant.getIsMuted())
+                                                .lastReadAt(participant.getLastReadAt())
+                                                .joinedAt(participant.getJoinedAt())
+                                                .build()
+                                        );
+                }
+                return result;
+        }
+
+        public void leaveConversationGroup(UUID conversationId) {
+                UUID currentUserId = UUID.fromString(
+                                (String) ((org.springframework.security.oauth2.jwt.Jwt) SecurityContextHolder
+                                                .getContext()
+                                                .getAuthentication().getPrincipal())
+                                                .getClaims().get("userId"));
+
+                Conversation conversation = conversationRepository.findById(conversationId)
+                                .orElseThrow(() -> new AppException(ErrorCode.NOT_EXITS));
+
+                if (conversation.getType() != ConversationType.GROUP) {
+                        throw new AppException(ErrorCode.INVALID_REQUEST);
+                }
+                ConversationParticipant participant = conversationParticipantRepository
+                                .findByConversationIdAndUserId(conversation.getId(), currentUserId)
+                                .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST));
+                if(participant.getRole() == ConversationParticipantRole.MEMBER) {
+                        conversationParticipantRepository.delete(participant);
+                }else if(participant.getRole() == ConversationParticipantRole.ADMIN) {
+                        int adminCount = countAdminInGroup(conversationId);
+                        if(adminCount > 1) {
+                                conversationParticipantRepository.delete(participant);
+                        }else {
+                                throw new AppException(ErrorCode.NO_ADMIN_IN_GROUP);
+                        }
+                }
+        }
+
+        public void removeGroupChat(UUID conversationId) {
+                UUID currentUserId = UUID.fromString(
+                                (String) ((org.springframework.security.oauth2.jwt.Jwt) SecurityContextHolder
+                                                .getContext()
+                                                .getAuthentication().getPrincipal())
+                                                .getClaims().get("userId"));
+                Conversation conversation = conversationRepository.findById(conversationId)
+                                .orElseThrow(() -> new AppException(ErrorCode.NOT_EXITS));
+
+                if (conversation.getType() != ConversationType.GROUP) {
+                        throw new AppException(ErrorCode.INVALID_REQUEST);
+                }
+                ConversationParticipant participant = conversationParticipantRepository
+                                .findByConversationIdAndUserId(conversation.getId(), currentUserId)
+                                .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST));
+                List<ConversationParticipant> participants = conversationParticipantRepository
+                                .findByConversationId(conversation.getId());
+                if(participant.getRole() == ConversationParticipantRole.ADMIN) {
+                        conversationParticipantRepository.deleteAll(participants);
+                }else {
+                        throw new AppException(ErrorCode.NO_ADMIN_NO_PERMISSION);
+                }
+        }
+
+        public int countAdminInGroup(UUID conversationId) {
+                Conversation conversation = conversationRepository.findById(conversationId)
+                                .orElseThrow(() -> new AppException(ErrorCode.NOT_EXITS));
+
+                if (conversation.getType() != ConversationType.GROUP) {
+                        throw new AppException(ErrorCode.INVALID_REQUEST);
+                }
+
+                List<ConversationParticipant> participants = conversationParticipantRepository
+                                .findByConversationId(conversation.getId());
+
+                return (int) participants.stream()
+                                .filter(participant -> participant.getRole() == ConversationParticipantRole.ADMIN)
+                                .count();
+        }
+
+        public void updateGroupInfo(UpdateConversationResquest req, UUID conversationId) {
+                UUID currentUserId = UUID.fromString(
+                                (String) ((org.springframework.security.oauth2.jwt.Jwt) SecurityContextHolder
+                                                .getContext()
+                                                .getAuthentication().getPrincipal())
+                                                .getClaims().get("userId"));
+                ConversationParticipant participant = conversationParticipantRepository
+                                .findByConversationIdAndUserId(conversationId, currentUserId)
+                                .orElseThrow(() -> new AppException(ErrorCode.NOT_EXITS));      
+                if(participant.getRole() != ConversationParticipantRole.ADMIN) {
+                        throw new AppException(ErrorCode.NO_PERMISSION);
+                }
+                Conversation conversation = conversationRepository.findById(conversationId)
+                                .orElseThrow(() -> new AppException(ErrorCode.NOT_EXITS));
+                conversation.setName(req.getName());
+                conversation.setAvatarGroup(req.getAvatarGroup());
+                conversationRepository.save(conversation);
         }
 
         public void updateLastReadAt(UUID conversationId) {
-                UUID currentUserId = UUID.fromString((String) ((org.springframework.security.oauth2.jwt.Jwt) SecurityContextHolder
+                UUID currentUserId = UUID.fromString(
+                                (String) ((org.springframework.security.oauth2.jwt.Jwt) SecurityContextHolder
                                                 .getContext()
                                                 .getAuthentication().getPrincipal())
                                                 .getClaims().get("userId"));

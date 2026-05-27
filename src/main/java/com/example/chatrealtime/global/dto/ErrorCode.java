@@ -37,7 +37,10 @@ public enum ErrorCode {
     IVALID_SIZE_FILE(1014, "File vượt quá kích thước cho phép", 400),
 
     GOOGLE_EMAIL_NOT_VERIFIED(1015, "Email Google chưa được xác minh", 400),
-    NOT_LOGIN_WITH_GOOGLE(1016, "Tài khoản đã tồn tại và không đăng nhập bằng Google", 400);
+    NOT_LOGIN_WITH_GOOGLE(1016, "Tài khoản đã tồn tại và không đăng nhập bằng Google", 400),
+
+    NO_ADMIN_IN_GROUP(1017, "Phải có ít nhất 1 admin trong nhóm chat", 403),
+    NO_ADMIN_NO_PERMISSION(1018, "Bạn không phải là admin không có quyền xóa nhóm chat", 403);
     
 
     private final int code;

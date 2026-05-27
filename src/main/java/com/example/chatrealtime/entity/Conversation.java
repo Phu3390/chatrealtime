@@ -28,4 +28,7 @@ public class Conversation {
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
+
+    @Column(name = "avatar_group")
+    private String avatarGroup;
 }

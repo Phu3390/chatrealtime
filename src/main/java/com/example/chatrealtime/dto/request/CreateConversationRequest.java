@@ -15,6 +15,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class CreateConversationRequest {
+    private String avatarGroup;
     private ConversationType type;
     private String name;
     private List<UUID> participantIds;

@@ -3,6 +3,7 @@ package com.example.chatrealtime.dto.response;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import com.example.chatrealtime.enums.ConversationParticipantRole;
 import com.example.chatrealtime.enums.ConversationType;
 import com.example.chatrealtime.enums.MessageType;
 
@@ -26,4 +27,7 @@ public class ConversationSummaryResponse {
     private String lastSenderName;
     private LocalDateTime lastMessageAt;
     private Integer unreadCount;
+
+    private String avatarGroup; 
+    private ConversationParticipantRole role;
 }
